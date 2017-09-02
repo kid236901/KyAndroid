@@ -71,13 +71,13 @@ public class GroupAdapter extends BaseAdapter {
 
 			@Override
 			public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-				if(mGroupItems[position] != null){
-					if (checked){
-						mGroupItems[position][0] = "1";
-					}else{
-						mGroupItems[position][0] = "0";
-					}
-				}
+                if(position < mGroupItems.length){
+                    if (checked){
+                        mGroupItems[position][0] = "1";
+                    }else{
+                        mGroupItems[position][0] = "0";
+                    }
+                }
 			}
 		});
 		// 点击事件
