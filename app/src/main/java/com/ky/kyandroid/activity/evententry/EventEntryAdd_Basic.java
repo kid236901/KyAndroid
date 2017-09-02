@@ -18,6 +18,7 @@ import android.view.animation.TranslateAnimation;
 import android.widget.AdapterView;
 import android.widget.ArrayAdapter;
 import android.widget.Button;
+import android.widget.CheckBox;
 import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
@@ -30,6 +31,7 @@ import android.widget.Toast;
 import com.ky.kyandroid.R;
 import com.ky.kyandroid.activity.LoginActivity;
 import com.ky.kyandroid.adapter.GroupAdapter;
+import com.ky.kyandroid.adapter.MsgNoticeListAdapter;
 import com.ky.kyandroid.bean.CodeValue;
 import com.ky.kyandroid.db.dao.DescEntityDao;
 import com.ky.kyandroid.db.dao.TFtQhEntityDao;
@@ -41,7 +43,9 @@ import com.ky.kyandroid.util.StringUtils;
 
 import java.lang.ref.WeakReference;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import butterknife.BindView;
 import butterknife.ButterKnife;
@@ -631,24 +635,43 @@ public class EventEntryAdd_Basic extends Fragment {
         }
     }
 
+    // 选中的列表
+    final Set<String> selectedNameSet = new HashSet<>();
     @OnClick({R.id.field_departmen_layout, R.id.fields_involved_linearlayout,R.id.pattern_manifestation_layout})
     public void onClick(View v) {
         int[] location = new int[2];
         // 获取控件在屏幕中的位置,方便展示Popupwindow
         fieldDepartmenLayout.getLocationOnScreen(location);
+        String[] selectedName = null;
+        // 每一次都清空
+        selectedNameSet.clear();
         switch (v.getId()) {
             // 到场部门
             case R.id.field_departmen_layout:
+                selectedName = fieldDepartmenEdt.getText().toString().split(",");
                 spinnerType = "dcbm";
                 break;
+            // 涉及领域
             case R.id.fields_involved_linearlayout:
+                selectedName = fieldsInvolvedEdt.getText().toString().split(",");
                 spinnerType = "sjly";
                 break;
+            // 表现形式
             case R.id.pattern_manifestation_layout:
+                selectedName = patternManifestationSpinner.getText().toString().split(",");
                 spinnerType = "BXXS";
                 break;
-
         }
+
+        // String[] 转 set<String>
+        if(selectedName != null && selectedName.length > 0){
+            for (String _name : selectedName){
+                if(!StringUtils.isBlank(_name)){
+                    selectedNameSet.add(_name);
+                }
+            }
+        }
+
         animation = null;
         // location[1] 改成 0
         animation = new TranslateAnimation(0, 0, -700, 0);
@@ -667,6 +690,10 @@ public class EventEntryAdd_Basic extends Fragment {
                 // 0 是未选中,1 是选中
                 cg[0] = "0";
                 cg[1] = codeValueList.get(i).getValue();
+                // 判断已经选择的
+                if(selectedNameSet.contains(cg[1])){
+                    cg[0] = "1";
+                }
                 GroupNameArray[i] = cg;
             }
             CodeValue cv = codeValueList.get(0);
@@ -679,7 +706,35 @@ public class EventEntryAdd_Basic extends Fragment {
                     // 0 是未选中,1 是选中
                     cg[0] = "0";
                     cg[1] = childCodeValueList.get(i).getValue();
+                    // 判断已经选择的
+                    if(selectedNameSet.contains(cg[1])){
+                        cg[0] = "1";
+                    }
                     childNameArray[i] = cg;
+                }
+
+                /** 三级菜单名称数组 **/
+                CodeValue cv2 = childCodeValueList.get(0);
+                // 获取列表集合
+                if(cv2 != null){
+                    /** 二级菜单名称数组 **/
+                    List<CodeValue> child2CodeValueList = descEntityDao.queryValueListByPid(spinnerType, cv2.getCode());
+                    child2NameArray = new String[child2CodeValueList.size()][];
+                    if (child2CodeValueList != null && child2CodeValueList.size() > 0) {
+                        for (int i = 0; i < child2CodeValueList.size(); i++) {
+                            String[] cg = new String[2];
+                            // 0 是未选中,1 是选中
+                            cg[0] = "0";
+                            cg[1] = child2CodeValueList.get(i).getValue();
+                            // 判断已经选择的
+                            if(selectedNameSet.contains(cg[1])){
+                                cg[0] = "1";
+                            }
+                            child2NameArray[i] = cg;
+                        }
+                    }
+                }else{
+                    child2NameArray = new String[0][];
                 }
             }
         }
@@ -748,18 +803,58 @@ public class EventEntryAdd_Basic extends Fragment {
         // 设置视图 一级菜单
         groupAdapter = new GroupAdapter(EventEntryAdd_Basic.this.getActivity(), GroupNameArray);
         groupListView.setAdapter(groupAdapter);
+        groupAdapter.setCheckBox_click(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CheckBox ck = (CheckBox)view;
+                String _value = (String)ck.getTag();
+                if (ck.isChecked()){
+                    selectedNameSet.add(_value);
+                }else{
+                    selectedNameSet.remove(_value);
+                }
+            }
+        });
         groupAdapter.notifyDataSetChanged();
         //表现形式只有一级
         if(!"BXXS".equals(spinnerType)){
             groupListView.setOnItemClickListener(new MyItemClick());
-
         }
 
         // 设置视图 二级菜单
         childAdapter = new GroupAdapter(EventEntryAdd_Basic.this.getActivity(), childNameArray);
         childListView.setAdapter(childAdapter);
+        childAdapter.setCheckBox_click(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CheckBox ck = (CheckBox)view;
+                String _value = (String)ck.getTag();
+                if (ck.isChecked()){
+                    selectedNameSet.add(_value);
+                }else{
+                    selectedNameSet.remove(_value);
+                }
+            }
+        });
         childAdapter.notifyDataSetChanged();
         childListView.setOnItemClickListener(new MyChildItemClick());
+
+        // 设置视图 三级菜单
+        childTwoAdapter = new GroupAdapter(EventEntryAdd_Basic.this.getActivity(), child2NameArray);
+        childListView2.setAdapter(childTwoAdapter);
+        childTwoAdapter.setCheckBox_click(new View.OnClickListener() {
+            @Override
+            public void onClick(View view) {
+                CheckBox ck = (CheckBox)view;
+                String _value = (String)ck.getTag();
+                if (ck.isChecked()){
+                    selectedNameSet.add(_value);
+                }else{
+                    selectedNameSet.remove(_value);
+                }
+            }
+        });
+        childTwoAdapter.notifyDataSetChanged();
 
         //因为到场部门有3层结构，而涉及领域只有2层
         if ("dcbm".equals(spinnerType)) {
@@ -787,6 +882,25 @@ public class EventEntryAdd_Basic extends Fragment {
      */
     private void fillListValues() {
         StringBuffer sb = new StringBuffer();
+        for (String _name : selectedNameSet){
+            sb.append(_name).append(",");
+        }
+        if (selectedNameSet.isEmpty()) {
+            Toast.makeText(EventEntryAdd_Basic.this.getActivity(), "请选择任意一项", Toast.LENGTH_LONG).show();
+            return;
+        } else {
+            if ("sjly".equals(spinnerType)) {
+                // 涉及领域
+                fieldsInvolvedEdt.setText(sb.deleteCharAt(sb.length() - 1).toString());
+            } else if ("dcbm".equals(spinnerType)) {
+                fieldDepartmenEdt.setText(sb.deleteCharAt(sb.length() - 1).toString());
+            }else if ("BXXS".equals(spinnerType)) {
+                patternManifestationSpinner.setText(sb.deleteCharAt(sb.length() - 1).toString());
+            }
+            mPopupWindow.dismiss();
+        }
+
+        /*
         // 菜单列表项
         List<GroupAdapter> adapterList = new ArrayList<GroupAdapter>();
         adapterList.add((GroupAdapter) groupListView.getAdapter());
@@ -810,6 +924,7 @@ public class EventEntryAdd_Basic extends Fragment {
             }
             mPopupWindow.dismiss();
         }
+        */
     }
 
 
@@ -829,6 +944,10 @@ public class EventEntryAdd_Basic extends Fragment {
         return flag;
     }
 
+
+    /**
+     * 子项点击事件
+     */
     class MyItemClick implements AdapterView.OnItemClickListener {
 
         @Override
@@ -854,6 +973,10 @@ public class EventEntryAdd_Basic extends Fragment {
                             break;
                         }
 
+                    }
+                    // 判断已经选择的
+                    if(selectedNameSet.contains(cg[1])){
+                        cg[0] = "1";
                     }
                     childNameArray[i] = cg;
                 }
@@ -898,15 +1021,16 @@ public class EventEntryAdd_Basic extends Fragment {
 
                         }
                     }
+                    // 判断已经选择的
+                    if(selectedNameSet.contains(cg[1])){
+                        cg[0] = "1";
+                    }
                     child2NameArray[i] = cg;
                 }
             } else {
                 flag = true;
             }
             if (flag) {
-                if (childTwoAdapter == null) {
-                    childTwoAdapter = new GroupAdapter(EventEntryAdd_Basic.this.getActivity(), child2NameArray);
-                }
                 childTwoAdapter.setChildData(child2NameArray);
             }
             handler.sendEmptyMessage(22);
@@ -924,10 +1048,8 @@ public class EventEntryAdd_Basic extends Fragment {
                     groupAdapter.notifyDataSetChanged();
                     break;
                 case 22:
-                    if (childTwoAdapter != null) {
-                        childListView2.setAdapter(childTwoAdapter);
-                        childTwoAdapter.notifyDataSetChanged();
-                    }
+                    childListView2.setAdapter(childTwoAdapter);
+                    childTwoAdapter.notifyDataSetChanged();
                     childAdapter.notifyDataSetChanged();
                     break;
                 default:

@@ -12,6 +12,8 @@ import android.widget.TextView;
 
 import com.ky.kyandroid.R;
 
+import java.util.Set;
+
 /**
  * 父ListView适配器
  * 
@@ -23,6 +25,12 @@ public class GroupAdapter extends BaseAdapter {
 	Context mContext;// 上下文对象
 	String[][] mGroupItems;// item标题数组
 	int mPosition = 0;// 选中的位置
+
+	private View.OnClickListener checkBox_click;
+
+	public void setCheckBox_click(View.OnClickListener checkBox_click) {
+		this.checkBox_click = checkBox_click;
+	}
 
 	/**
 	 * 构造方法
@@ -58,17 +66,22 @@ public class GroupAdapter extends BaseAdapter {
 		holder.groupName.setText(index_group[1]);
 		// 是否选中
 		holder.checkBox.setChecked("1".equals(index_group[0]));
+		holder.checkBox.setTag(index_group[1]);
 		holder.checkBox.setOnCheckedChangeListener(new CompoundButton.OnCheckedChangeListener() {
+
 			@Override
 			public void onCheckedChanged(CompoundButton compoundButton, boolean checked) {
-				if (checked){
-					mGroupItems[position][0] = "1";
-				}else{
-					mGroupItems[position][0] = "0";
+				if(mGroupItems[position] != null){
+					if (checked){
+						mGroupItems[position][0] = "1";
+					}else{
+						mGroupItems[position][0] = "0";
+					}
 				}
 			}
 		});
-
+		// 点击事件
+		holder.checkBox.setOnClickListener(checkBox_click);
 		if (mPosition == position) {
 			holder.groupName.setTextColor(mContext.getResources().getColor(
 					R.color.list_item_text_pressed_bg));
@@ -89,7 +102,7 @@ public class GroupAdapter extends BaseAdapter {
 	 */
 	@Override
 	public int getCount() {
-		return mGroupItems.length;
+		return mGroupItems == null ? 0 : mGroupItems.length;
 	}
 
 	/**
